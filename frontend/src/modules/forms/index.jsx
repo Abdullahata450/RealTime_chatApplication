@@ -16,7 +16,7 @@ function Form({ isSignin = false }) {
       alert("Full Name is required!");
       return;
     }
-    if (!data.email) {
+    if (!data.email && !data.email.contains("@")) {
       alert("Email is required!");
       return;
     }
