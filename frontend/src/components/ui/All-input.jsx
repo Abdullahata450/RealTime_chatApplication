@@ -29,3 +29,11 @@ export function InputWithPasswrodLabel({value="" , onChange = () => {}}){
   )
 }
 
+export function Inputchat ({}){
+  return (
+    <div className="grid w-full max-w-sm items-center">
+      <Input type="text" id="message" placeholder="Enter Message" required/>
+    </div>
+  )
+}
+

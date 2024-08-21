@@ -1,0 +1,104 @@
+
+
+/* Sidebar Styles */
+.main-section {
+  @apply flex flex-col md:flex-row w-full h-screen
+}
+.sidebar-container {
+    @apply w-full md:w-[25%] h-full bg-gradient-to-r from-indigo-200 via-sky-100 to-emerald-200 p-4;
+  }
+  
+  .user-info {
+    @apply flex items-center mb-8 ;
+  }
+  
+  .avatar-image {
+    @apply border border-indigo-400 p-[2px] rounded-full w-16 h-16 md:w-20 md:h-20 object-cover;
+  }
+  
+  .user-name {
+    @apply text-xl md:text-2xl;
+  }
+  
+  .user-account {
+    @apply text-sm md:text-lg font-light;
+  }
+  
+  .message-section {
+    @apply mt-5;
+  }
+  
+  .message-title {
+    @apply text-lg md:text-xl text-blue-500 mb-4;
+  }
+  
+  .message-list {
+    @apply overflow-y-scroll h-[60vh] md:h-[70vh];
+  }
+  
+  .message-item {
+    @apply flex items-center py-4 md:py-7 border-b border-gray-300;
+  }
+  
+  .message-avatar {
+    @apply w-12 h-12 md:w-14 md:h-14 object-cover rounded-full;
+  }
+  
+  .message-name {
+    @apply text-lg font-semibold;
+  }
+  
+  .message-status {
+    @apply text-sm font-light text-gray-900;
+  }
+  
+  /* Chat Window Styles */
+  .chat-container {
+    @apply w-full md:w-[50%] h-full bg-white flex flex-col items-center;
+  }
+  
+  .chat-header {
+    @apply w-full md:w-[75%] bg-secondary h-[90px] md:h-[90px] mt-6 md:mt-14 rounded-full flex items-center px-6 md:px-10;
+  }
+  
+  .chat-avatar {
+    @apply w-14 h-16 md:w-14 md:h-14 rounded-full cursor-pointer;
+  }
+  
+  .chat-title {
+    @apply ml-3 mr-auto text-base md:text-lg;
+  }
+  
+  .chat-status {
+    @apply text-sm font-light text-gray-900;
+  }
+  
+  .chat-body {
+    @apply m-2  w-full overflow-y-scroll  shadow-md;
+  }
+  .chat-section{
+    @apply h-[1000px] px-10 py-14;
+  }
+  
+  .chat-message-received {
+    @apply max-w-[40%] bg-secondary rounded-b-xl rounded-tr-xl p-4 mb-3;
+  }
+  
+  .chat-message-sent {
+    @apply max-w-[40%] bg-blue-600 rounded-b-xl rounded-tl-xl ml-auto mt-3 p-4 text-white;
+  }
+  .chat-input-container{
+    @apply p-12 w-full  flex items-center ml-20;
+  }
+  .chat-sendbtn{
+    @apply ml-4 p-4 cursor-pointer bg-green-300 rounded-lg;
+  }
+  .chat-senditemsbtn{
+    @apply ml-4 p-4 cursor-pointer bg-green-200 rounded-lg;
+
+  }
+  /* Extra Sidebar Styles */
+  .extra-sidebar {
+    @apply w-full md:w-[25%] flex h-full bg-gray-50;
+  }
+  
