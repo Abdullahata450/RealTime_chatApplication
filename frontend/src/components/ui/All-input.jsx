@@ -23,7 +23,7 @@ export function InputWithNameLabel({value="" , onChange = () => {}}){
 export function InputWithPasswrodLabel({value="" , onChange = () => {}}){
   return (
     <div className="grid w-full max-w-sm items-center">
-      <Label htmlFor="Password">Password</Label>
+      <Label htmlFor="password">Password</Label>
       <Input type="password" id="password" placeholder="Enter Password" onChange={onChange} value={value} required />
     </div>
   )

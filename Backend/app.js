@@ -8,6 +8,7 @@ import { ApiError } from './utils/ApiErrorResponse.js';
 import bscript from 'bcrypt'
 import { ApiResponse } from './utils/ApiResponse.js';
 import jwt from 'jsonwebtoken';
+import cors from 'cors';
 
 dotenv.config(
     {path: './.env'}
@@ -15,6 +16,7 @@ dotenv.config(
 const app=express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cors());
 
 
 let port = process.env.PORT || 3000;
@@ -29,7 +31,7 @@ app.post('/api/register', async (req,res,next)=>{
          if(!(fullname && email && password ))
         {
              res.json(
-                new ApiError(401, "All fields are required", ["All fields are required"])
+                new ApiError(201, "All fields are required", ["All fields are required"])
             )
         }else{
             const alreadyExist = await User.findOne({email});
@@ -58,56 +60,60 @@ app.post('/api/register', async (req,res,next)=>{
      }
 })
 
-app.post('/api/login', async (req,res)=>{
-    try{
-        const {email, password} = req.body;
-        if(!(email && password)){
-             res.json(
-                new ApiError(401, "All fields are required", ["All fields are required"])
-            )
-        }else{
-          const user = await User.findOne({email});
-          if(!user){
-             res.status(400).send(
-                 new ApiError(401, "User Not Found", ["User Not Found"])    
-            )
-          }
-          else{
-            const isMatch = await bscript.compare(password, user.password);
-             if(!isMatch){
-                 res.status(400).send(
-                    new ApiError(401, "incorrect password", ["icorrect password"])
-               )
-             }
-             else {
-                 const payload={
-                    Userid:user._id,
-                    email:user.email
-                }
-                const JWT_SECRET_KEY=process.env.JWT_SECRET_KEY;
-                jwt.sign(payload,JWT_SECRET_KEY,{
-                    expiresIn:'84600',
-                } ,
-                async (err,token)=>{
-                  await User.updateOne({_id:user._id},{$set : {token}});
-                  user.save();
-                }
-            )
-             res.json(new ApiResponse(200,{
-                email:user.email,
-                fullname:user.fullname,
-                token:user.token,
-             },"User Logged in Successfully"))
+app.post('/api/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
 
-            }
-          }
+        if (!(email && password)) {
+            return res.status(400).json(
+                new ApiError(400, "All fields are required", ["All fields are required"])
+            );
         }
-        
+
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json(
+                new ApiError(404, "User Not Found", ["User Not Found"])
+            );
+        }
+
+        const isMatch = await bscript.compare(password, user.password);
+
+        if (!isMatch) {
+            return res.status(401).json(
+                new ApiError(401, "Incorrect password", ["Incorrect password"])
+            );
+        }
+
+        const payload = {
+            Userid: user._id,
+            email: user.email
+        };
+
+        const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY;
+
+        jwt.sign(payload, JWT_SECRET_KEY, { expiresIn: '24h' }, async (err, token) => {
+            if (err) {
+                return res.status(500).json(
+                    new ApiError(500, "Error signing token", [err.message])
+                );
+            }
+
+            await User.updateOne({ _id: user._id }, { $set: { token } });
+
+             return res.status(200).json(new  ApiResponse(200, { user: { email: user.email, fullname: user.fullname }, token }, "User Logged In Successfully"));
+
+            // return res.json({ user: { email: user.email, fullname: user.fullname }, token });
+        });
+
+    } catch (error) {
+        return res.status(500).json(
+            new ApiError(500, error.message, [error.message])
+        );
     }
-    catch(error){
-         throw new ApiError(500, error.message);
-    }
-})
+});
+
 
 app.post('/api/conversations', async (req,res)=>{
     try {
@@ -140,11 +146,20 @@ app.get('/api/conversations/:userId', async (req,res)=>{
 
 app.post('/api/message', async (req,res)=>{
     try {
-        const {conversationId,senderId,message}= req.body;
+        const {conversationId,senderId,message,receiverId=''}= req.body;
 
-        if(!conversationId || !senderId || !message) return res.status(200).json(new ApiResponse(200, null, "All fields are required"));
+        if(!senderId || !message) return res.status(200).json(new ApiResponse(200, null, "All fields are required"));
 
 
+        if(!conversationId && receiverId){
+            const newConservation = new Conversation({members:[senderId,receiverId]});
+            await newConservation.save();
+            const newMessag= new Messages({conversationId:newConservation._id,senderId,message});
+            await newMessag.save();
+            return res.status(200).json(new ApiResponse(200, newMessag, "Message Sent Successfully"))
+        }else if(!conversationId && !receiverId){
+            return res.status(200).json(new ApiResponse(200, null, "All fields are required"))
+        }
         const newMessag = new Messages({conversationId,senderId,message});
         await newMessag.save();
         return res.status(200).json(new ApiResponse(200, newMessag, "Message Sent Successfully"))
