@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import ConnectDB from './Database/DB-Connection.js';
 import {User} from './models/Users.models.js';
 import { Conversation } from './models/conversation.models.js';
+import {Messages} from './models/messeges.models.js'
 import { ApiError } from './utils/ApiErrorResponse.js';
 import bscript from 'bcrypt'
 import { ApiResponse } from './utils/ApiResponse.js';
@@ -137,6 +138,48 @@ app.get('/api/conversations/:userId', async (req,res)=>{
     }
 })
 
+app.post('/api/message', async (req,res)=>{
+    try {
+        const {conversationId,senderId,message}= req.body;
+
+        if(!conversationId || !senderId || !message) return res.status(200).json(new ApiResponse(200, null, "All fields are required"));
+
+
+        const newMessag = new Messages({conversationId,senderId,message});
+        await newMessag.save();
+        return res.status(200).json(new ApiResponse(200, newMessag, "Message Sent Successfully"))
+
+    } catch (error) {
+        throw new ApiError(500,error.message,'Error while sending message')
+    }
+})
+
+app.get('/api/message/:conversationId', async (req,res)=>{
+     try {
+             const conversationId =req.params.conversationId;
+             if(conversationId=== 'new') return res.status(200).json([]);
+
+             const messages = await Messages.find({conversationId});
+             const messageUserData= await Promise.all(messages.map(async (message)=>{
+                 const user= await User.findById(message.senderId);
+                 return {user:{fullname:user.fullname, email:user.email}, message:message.message}
+             }))
+             return res.status(200).json(new ApiResponse(200, messageUserData, "Messages Fetched Successfully"))
+
+     } catch (error) {
+        
+        throw new ApiError(500,"Error while fetching messages")
+     }
+})
+
+app.get('/api/users', async (req,res)=>{
+    try {
+         const users = await User.find().select("-password -token -_id");
+         return res.status(200).json(new ApiResponse(200, users, "All Users Fetched Successfully"))
+    } catch (error) {
+         throw new ApiError(500,"Error while fetching users ")
+    }
+})
 
 ConnectDB().then(()=>{
     app.listen(port, () => console.log(`Server is Running on ${port}`))

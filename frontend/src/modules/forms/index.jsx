@@ -28,7 +28,7 @@ function Form({ isSignin = false }) {
       return;
     }
 
-    console.log("Form data:", data);
+    // console.log("Form data:", data);
 
   };
 
@@ -53,10 +53,12 @@ function Form({ isSignin = false }) {
           value={data.email}
           onChange={(e) => setData({ ...data, email: e.target.value })}
         />
-        <InputWithPasswrodLabel
-          value={data.password}
-          onChange={(e) => setData({ ...data, password: e.target.value })}
-        />
+  <InputWithPasswrodLabel
+    value={data.password}
+    onChange={(e) => setData({ ...data, password: e.target.value })}
+  />
+
+
       </div>
       <div className='w-1/2 flex flex-col py-2'>
         <Button type="submit">{isSignin ? "Sign in" : "Register"}</Button>

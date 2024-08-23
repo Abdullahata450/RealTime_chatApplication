@@ -5,7 +5,7 @@ const conversationScheme = new mongoose.Schema(
     {
          members:{
             type: [mongoose.Schema.Types.ObjectId],
-            ref:"User" ,      // it will store to data in array userid whihc is logged in and other which we are conversating with
+            ref:"User" ,      // it will store to data in array userid which is logged in and other which we are conversating with
             required :true
         },
 
