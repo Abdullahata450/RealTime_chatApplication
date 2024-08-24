@@ -5,7 +5,7 @@
   @apply flex flex-col md:flex-row w-full h-screen
 }
 .sidebar-container {
-    @apply w-full md:w-[25%] h-full bg-gradient-to-r from-indigo-200 via-sky-100 to-emerald-200 p-4;
+    @apply w-full md:w-[25%] h-full bg-[#614747] text-white p-4;
   }
   
   .user-info {
@@ -58,7 +58,7 @@
   }
   
   .chat-header {
-    @apply w-full md:w-[75%] bg-secondary h-[90px] md:h-[90px] mt-6 md:mt-14 rounded-full flex items-center px-6 md:px-10;
+    @apply w-full md:w-[75%] bg-secondary h-[90px] md:h-[90px] mt-6 md:mt-14 rounded-full flex items-center py-2  px-6 md:px-10;
   }
   
   .chat-avatar {

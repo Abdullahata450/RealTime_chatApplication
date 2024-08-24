@@ -2,7 +2,6 @@ import React, { useState } from 'react'
 import { InputWithEmailLabel, InputWithNameLabel, InputWithPasswrodLabel } from '@/components/ui/All-input'
 import { Button } from '@/components/ui/button'
 import { useNavigate } from 'react-router-dom';
-import { Navigate } from 'react-router-dom'
 
 function Form({ isSignin = false }) {
   const [data, setData] = useState({
@@ -42,9 +41,17 @@ function Form({ isSignin = false }) {
       },
       body: JSON.stringify(data)
     });
+    if(res.status===201){
+      alert("User Registered Successfully");
+      navigate('/users/signin');
+    }
     
+   
     if(res.status===404  || res.status===401 || res.status===400){         // mean bad Request
       alert("Invalid Credentials");
+    }
+    if(res.status===409){
+      alert("User already exists");
     }
     else{
       const  resData= await res.json();
