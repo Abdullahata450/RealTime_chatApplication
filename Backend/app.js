@@ -131,9 +131,9 @@ app.get('/api/conversations/:userId', async (req,res)=>{
          const userId=req.params.userId;
          const conversations = await Conversation.find({members:{$in:[userId]}});
          const conversationUsersData= await Promise.all(conversations.map(async (conversation)=>{
-             const receiverId = conversation.members.find((member)=>member!==userId);
+             const receiverId = conversation.members.find((member)=>member.toString()!==userId);
              const user= await User.findById(receiverId);
-             return {user:{fullname:user.fullname, email:user.email}, conversationId:conversation._id};
+             return {user:{receiverId:user._id ,fullname:user.fullname, email:user.email}, conversationId:conversation._id};
              
          }))
          return  res.status(200).json(new ApiResponse(200,  conversationUsersData, "Conversation Data Fetched Successfully"))
@@ -143,30 +143,39 @@ app.get('/api/conversations/:userId', async (req,res)=>{
     }
 })
 
-app.post('/api/message', async (req,res)=>{
+app.post('/api/message', async (req, res) => {
     try {
-        const {conversationId,senderId,message,receiverId=''}= req.body;
+        const { conversationId, senderId, message, receiverId } = req.body;
 
-        if(!senderId || !message) return res.status(200).json(new ApiResponse(200, null, "All fields are required"));
-
-
-        if(!conversationId && receiverId){
-            const newConservation = new Conversation({members:[senderId,receiverId]});
-            await newConservation.save();
-            const newMessag= new Messages({conversationId:newConservation._id,senderId,message});
-            await newMessag.save();
-            return res.status(200).json(new ApiResponse(200, newMessag, "Message Sent Successfully"))
-        }else if(!conversationId && !receiverId){
-            return res.status(200).json(new ApiResponse(200, null, "All fields are required"))
+        if (!senderId || !message) {
+            return res.status(400).json(new ApiResponse(400, null, "Sender ID and message are required"));
         }
-        const newMessag = new Messages({conversationId,senderId,message});
-        await newMessag.save();
-        return res.status(200).json(new ApiResponse(200, newMessag, "Message Sent Successfully"))
+
+        if (!conversationId && !receiverId) {
+            return res.status(400).json(new ApiResponse(400, null, "Conversation ID or Receiver ID is required"));
+        }
+
+        if (!conversationId && receiverId) {
+            const newConversation = new Conversation({ members: [senderId, receiverId] });
+            await newConversation.save();
+            
+            const newMessage = new Messages({ conversationId: newConversation._id, senderId, message });
+            await newMessage.save();
+            
+            return res.status(200).json(new ApiResponse(200, newMessage, "Message Sent Successfully"));
+        }
+
+        // Handle existing conversation
+        const newMessage = new Messages({ conversationId, senderId, message });
+        await newMessage.save();
+        
+        return res.status(200).json(new ApiResponse(200, newMessage, "Message Sent Successfully"));
 
     } catch (error) {
-        throw new ApiError(500,error.message,'Error while sending message')
+        console.error("Error while sending message:", error);
+        return res.status(500).json(new ApiResponse(500, null, 'Error while sending message'));
     }
-})
+});
 
 app.get('/api/message/:conversationId', async (req,res)=>{
      try {
@@ -188,7 +197,7 @@ app.get('/api/message/:conversationId', async (req,res)=>{
 
 app.get('/api/users', async (req,res)=>{
     try {
-         const users = await User.find().select("-password -token -_id");
+         const users = await User.find().select("-password -token ");
          return res.status(200).json(new ApiResponse(200, users, "All Users Fetched Successfully"))
     } catch (error) {
          throw new ApiError(500,"Error while fetching users ")
