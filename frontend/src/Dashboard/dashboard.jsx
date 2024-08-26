@@ -9,65 +9,65 @@ function UserDashBoard() {
     const [message, setMessage] = useState({ message: [], reciver: {}, conversationId: "" });
     const [newMessage, setNewMessage] = useState(""); // For handling new message input
     const [users, setUsers] = useState([]);
-    console.log("Users", users);
+    const [filteredUsers, setFilteredUsers] = useState([]);
 
     useEffect(() => {
-        const loggedinUser = JSON.parse(localStorage.getItem('user:details'));
-        if (loggedinUser?.id) {
-            const fetchConversations = async () => {
-                try {
-                    console.log("User", loggedinUser)
-                    const res = await fetch(`http://localhost:8000/api/conversations/${loggedinUser.id}`, {
+        const fetchAllUsersAndConversations = async () => {
+            try {
+                const loggedinUser = JSON.parse(localStorage.getItem('user:details'));
+                
+                if (loggedinUser?.id) {
+                    // Fetch Conversations
+                    const conversationsRes = await fetch(`http://localhost:8000/api/conversations/${loggedinUser.id}`, {
                         method: 'GET',
                         headers: {
                             'Content-Type': 'application/json',
                         },
                     });
-                    const resData = await res.json();
-                    setConversations(resData.data);
-                } catch (error) {
-                    console.error("Error fetching conversations:", error);
+                    const conversationsData = await conversationsRes.json();
+                    setConversations(conversationsData.data);
+                    
+                    // Extract user IDs from conversations
+                    const conversationUserIds = conversationsData.data.map(convo => convo.user.receiverId);
+                    // console.log(conversationUserIds);
+                    
+                    // Fetch All Users
+                    const usersRes = await fetch(`http://localhost:8000/api/users/${loggedinUser.id}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                    });
+                    const usersData = await usersRes.json();
+                    setUsers(usersData.data);
+                    
+                    // Filter out users who are already in conversations
+                    const uniqueUsers = usersData.data.filter(user => !conversationUserIds.includes(user.receiverId));
+                    // console.log(uniqueUsers);
+                    setFilteredUsers(uniqueUsers);
                 }
-            };
-            fetchConversations();
-        }
+            } catch (error) {
+                console.error("Error fetching users or conversations:", error);
+            }
+        };
+
+        fetchAllUsersAndConversations();
     }, []);
 
-
-
-    useEffect(() => {
-        const fetchUsers = async () => {
-            try {
-                const res = await fetch('http://localhost:8000/api/users', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-
-                });
-                const resData = await res.json();
-                setUsers(resData.data);
-            } catch (error) {
-                console.log("Error fetching users:", error);
-            }
-        }
-        fetchUsers();
-    },);
-
-    const fetchMessages = async (conversationId, user) => {
+    const fetchMessages = async (conversationId, reciver) => {
         try {
-            const res = await fetch(`http://localhost:8000/api/message/${conversationId}`, {
+            const res = await fetch(`http://localhost:8000/api/message/${conversationId}?senderId=${user?.id}&&receiverId=${reciver?.receiverId}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
                 },
             });
             const resData = await res.json();
-            setMessage({ message: resData.data || [], reciver: user, conversationId });
+            setMessage({ message: resData.data, reciver, conversationId });
         } catch (error) {
             console.error("Error fetching messages:", error);
         }
-    }
+    };
 
     const sendMessage = async () => {
         try {
@@ -83,21 +83,8 @@ function UserDashBoard() {
                     receiverId: message?.reciver?.receiverId,
                 }),
             });
-
-            const resData = await res.json();
-            console.log("resData=>" + resData)
-            setNewMessage("")
-
-            // if (res.ok) {
-            //     console.log('Response:', resData);
-            //     setMessage(prevMessage => ({
-            //         ...prevMessage,
-            //         message: [...prevMessage.message, { message: newMessage, user: { id: user.id } }]
-            //     }));
-            //     setNewMessage(""); // Clear the input field
-            // } else {
-            //     console.error('Error response:', resData.message);
-            // }
+            console.log("Message Clearing .. process");
+            setNewMessage("");
         } catch (error) {
             console.error('Error sending message:', error);
         }
@@ -125,7 +112,6 @@ function UserDashBoard() {
                         {
                             conversations.length > 0 ?
                                 conversations.map((conversation) => (
-                                    console.log(conversation),
                                     <div key={conversation.conversationId} className='message-item cursor-pointer' onClick={() => fetchMessages(conversation.conversationId, conversation.user)}>
                                         <img
                                             className='message-avatar'
@@ -172,7 +158,7 @@ function UserDashBoard() {
                                     <div key={index} className={id === user?.id ? 'chat-message-sent' : 'chat-message-received'}>
                                         {message}
                                     </div>
-                                )) : <p className='text-center text-lg font-bold italic mt-14'>No messages Or Conversation</p>
+                                )) : <p className='text-center text-lg font-bold italic mt-14'>{`No messages Or Conversation with  ${message.reciver.fullname}`}</p>
                         }
                     </div>
                 </div>
@@ -197,26 +183,31 @@ function UserDashBoard() {
                 }
             </div>
 
-            <div className='w-[25%] h-screen bg-slate-300 '>
-
+            <div className='w-[25%] h-screen bg-slate-300'>
                 <div className='message-title '>People May You Know</div>
                 <div className='message-list px-3 h-[90vh]'>
                     {
-                        users.length > 0 ?
-                            users.map((users) => (
-                                <div key={users.user_id} className='message-item cursor-pointer' onClick={() => fetchMessages('new', users.user_id)}>
+                        filteredUsers.length > 0 ?
+                            filteredUsers.map((user) => (
+                                <div key={user.receiverId} className='message-item cursor-pointer' onClick={() => fetchMessages('new', user)}>
                                     <img
                                         className='message-avatar'
                                         src={avatar}
-                                        alt={users.fullname || 'User Avatar'}
+                                        alt={user.fullname || 'User Avatar'}
                                     />
                                     <div className='ml-4'>
-                                        <h2 className='message-name'>{users.fullname || 'User Name'}</h2>
-                                        <p className='message-status'>{users.email || 'No Email'}</p>
+                                        <h2 className='message-name'>{user.fullname || 'User Name'}</h2>
+                                        <p className='message-status'>{user.email || 'No Email'}</p>
                                     </div>
                                 </div>
                             )) :
-                            <p className='text-center text-lg font-bold italic mt-14'>No Accounts Found</p>
+                            <div className='text-center mt-14'>
+                                <p className='text-lg font-bold italic'>No Accounts Avaliable </p>
+                                <a href="https://github.com/Abdullahata450/RealTime_chatApplication.git" target="_blank" rel="noopener noreferrer" className='text-blue-500 hover:underline' onClick={() => {
+                                    navigator.clipboard.writeText('https://github.com/Abdullahata450/RealTime_chatApplication.git');
+                                    alert('Link Copied to Clipboard. Share it with your friends to invite them.');
+                                }}>Invite People</a>
+                            </div>
                     }
                 </div>
             </div>

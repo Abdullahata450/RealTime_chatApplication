@@ -145,64 +145,99 @@ app.get('/api/conversations/:userId', async (req,res)=>{
 
 app.post('/api/message', async (req, res) => {
     try {
-        const { conversationId, senderId, message, receiverId } = req.body;
+        const { conversationId, senderId, message, receiverId = '' } = req.body;
+        console.log("conversationId", conversationId, "senderId", senderId, "message", message, "receiverId", receiverId);  
 
         if (!senderId || !message) {
             return res.status(400).json(new ApiResponse(400, null, "Sender ID and message are required"));
         }
 
-        if (!conversationId && !receiverId) {
-            return res.status(400).json(new ApiResponse(400, null, "Conversation ID or Receiver ID is required"));
-        }
-
-        if (!conversationId && receiverId) {
+        if (conversationId === 'new' && receiverId) {
             const newConversation = new Conversation({ members: [senderId, receiverId] });
-            await newConversation.save();
-            
-            const newMessage = new Messages({ conversationId: newConversation._id, senderId, message });
+            const savedConversation = await newConversation.save();
+            const newMessage = new Messages({ conversationId: savedConversation._id, senderId, message });
             await newMessage.save();
-            
             return res.status(200).json(new ApiResponse(200, newMessage, "Message Sent Successfully"));
-        }
 
-        // Handle existing conversation
+        } else if (!conversationId && !receiverId) {
+            return res.status(400).json(new ApiResponse(400, null, "Invalid conversationId or missing receiverId"));
+
+        }
         const newMessage = new Messages({ conversationId, senderId, message });
         await newMessage.save();
-        
-        return res.status(200).json(new ApiResponse(200, newMessage, "Message Sent Successfully"));
+        return;
 
     } catch (error) {
         console.error("Error while sending message:", error);
         return res.status(500).json(new ApiResponse(500, null, 'Error while sending message'));
     }
 });
-
-app.get('/api/message/:conversationId', async (req,res)=>{
-     try {
-             const conversationId =req.params.conversationId;
-             if(conversationId=== 'new') return res.status(200).json([]);
-
-             const messages = await Messages.find({conversationId});
-             const messageUserData= await Promise.all(messages.map(async (message)=>{
-                 const user= await User.findById(message.senderId);
-                 return {user:{id:user._id,fullname:user.fullname, email:user.email}, message:message.message}
-             }))
-             return res.status(200).json(new ApiResponse(200, messageUserData, "Messages Fetched Successfully"))
-
-     } catch (error) {
-        
-        throw new ApiError(500,"Error while fetching messages")
-     }
-})
-
-app.get('/api/users', async (req,res)=>{
+app.get('/api/message/:conversationId', async (req, res) => {
     try {
-         const users = await User.find().select("-password -token ");
-         return res.status(200).json(new ApiResponse(200, users, "All Users Fetched Successfully"))
+        // Function to fetch messages and user data
+        const fetchMessages = async (conversationId) => {
+            const messages = await Messages.find({ conversationId });
+            if (messages.length === 0) {
+                return res.status(404).json(new ApiResponse(404, null, "No messages found for this conversation"));
+            }
+
+            const messageUserData = await Promise.all(messages.map(async (message) => {
+                const user = await User.findById(message.senderId);
+                return { user: { id: user._id, fullname: user.fullname, email: user.email }, message: message.message };
+            }));
+            return res.status(200).json(new ApiResponse(200, messageUserData, "Messages Fetched Successfully"));
+        };
+
+        const conversationId = req.params.conversationId;
+
+        if (conversationId === 'new') {
+            const { senderId, receiverId } = req.query;
+
+            if (!senderId || !receiverId) {
+                return res.status(400).json(new ApiResponse(400, null, "Sender ID and Receiver ID are required for new conversations"));
+            }
+
+            // Check if a conversation already exists between the sender and receiver
+            const existingConversation = await Conversation.findOne({
+                members: { $all: [senderId, receiverId] }
+            });
+
+            if (existingConversation) {
+                // Fetch messages for the existing conversation
+                await fetchMessages(existingConversation._id);
+            } else {
+                // Return an empty response if no conversation is found
+                return res.status(200).json([]);
+            }
+        } else {
+            // Fetch messages for the given conversationId
+            await fetchMessages(conversationId);
+        }
+
     } catch (error) {
-         throw new ApiError(500,"Error while fetching users ")
+        console.error("Error while fetching messages:", error);
+        return res.status(500).json(new ApiResponse(500, null, "Error while fetching messages"));
     }
-})
+});
+
+
+app.get('/api/users/:userId', async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const users = await User.find({ _id: { $ne: userId } });
+        const userData = users.map(user => ({
+            email: user.email,
+            fullname: user.fullname,
+            receiverId: user._id
+        }));
+
+        return res.status(200).json(new ApiResponse(200, userData, "All Users Fetched Successfully"));
+    } catch (error) {
+        console.error("Error while fetching users:", error);
+        return res.status(500).json(new ApiResponse(500, null, "Error while fetching users"));
+    }
+});
+
 
 ConnectDB().then(()=>{
     app.listen(port, () => console.log(`Server is Running on ${port}`))
