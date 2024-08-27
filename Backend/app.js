@@ -9,6 +9,11 @@ import bcrypt from 'bcrypt'
 import { ApiResponse } from './utils/ApiResponse.js';
 import jwt from 'jsonwebtoken';
 import cors from 'cors';
+import http from 'http';
+import {Server} from 'socket.io';
+
+
+
 
 dotenv.config(
     {path: './.env'}
@@ -16,8 +21,59 @@ dotenv.config(
 const app=express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cors());
+app.use(cors({
+    origin: 'http://localhost:5173' // Your frontend URL
+}));
 
+
+// socket.io
+const server = http.createServer(app);
+
+const io = new Server(server, {
+    cors: {
+        origin: 'http://localhost:5173',
+        methods: ['GET', 'POST']
+    }
+});
+
+let users=[];
+io.on('connection', (socket) => {
+    console.log('User Connected', socket.id);
+    socket.on('addUser',userId =>{
+        const existingUser= users.find(user=>user.userId===userId)
+        if(!existingUser){
+            const user={userId ,socketId:socket.id};
+            users.push(user)
+            io.emit('getUser',users)
+        }
+    })
+
+    socket.on('sendMessage',async({senderId,reciverId,message,conversationId})=>{
+      const recevier= users.find(user=> user.userId===reciverId);
+      const sender = users.find(user=> user.userId===senderId);
+      const user= await User.findById(senderId);
+      if(recevier){
+        io.to(recevier.socketId).to(sender.socketId).emit('getMessage',{
+            senderId,
+            message,
+            conversationId,
+            reciverId,
+            user:{id:user._id,fullname:user.fullname,email:user.email},
+        })
+      }
+    });
+
+    socket.on('disconnect', () => {
+        users=users.filter(user=>user.socketId!==socket.id);
+        io.emit('getUser',users)
+    })
+});
+
+
+
+server.listen(8081, () => {
+    console.log('Socket Server running on port 8081');
+});
 
 let port = process.env.PORT || 3000;
 app.get('/', (req, res) => {
@@ -197,20 +253,16 @@ app.get('/api/message/:conversationId', async (req, res) => {
                 return res.status(400).json(new ApiResponse(400, null, "Sender ID and Receiver ID are required for new conversations"));
             }
 
-            // Check if a conversation already exists between the sender and receiver
             const existingConversation = await Conversation.findOne({
                 members: { $all: [senderId, receiverId] }
             });
 
             if (existingConversation) {
-                // Fetch messages for the existing conversation
                 await fetchMessages(existingConversation._id);
             } else {
-                // Return an empty response if no conversation is found
                 return res.status(200).json([]);
             }
         } else {
-            // Fetch messages for the given conversationId
             await fetchMessages(conversationId);
         }
 

@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState,useRef  } from 'react';
 import avatar from "./../assets/users.jpg";
 import './dashboard.css';
 import { Inputchat } from '../components/ui/All-input';
+import { io } from "socket.io-client";
+
 
 function UserDashBoard() {
     const [user, setUser] = useState(JSON.parse(localStorage.getItem('user:details')) || {});
@@ -10,6 +12,43 @@ function UserDashBoard() {
     const [newMessage, setNewMessage] = useState(""); // For handling new message input
     const [users, setUsers] = useState([]);
     const [filteredUsers, setFilteredUsers] = useState([]);
+    const [socket,setSocket] = useState(null);  
+    const inputRef = useRef(null);
+      
+    console.log(message,"message");
+
+    useEffect(() => {
+        const socketInstance = io('http://localhost:8081');
+        setSocket(socketInstance);
+
+        return () => {
+            socketInstance.disconnect();
+        };
+    }, []);
+
+    useEffect(() => {
+        if (socket) {
+            socket.emit('addUser', user?.id);
+
+            socket.on('getUser', (users) => {
+                console.log("Active Users", users);
+                setUsers(users);
+            });
+            socket?.on('getMessage',data =>{
+                console.log("message Data",data);
+                setMessage(prev=>({
+                    ...prev,
+                    message:[...prev.message,{user:data.user,message:data.message}],
+                }))
+
+            })
+        }
+        return () => {
+            if (socket) {
+                socket.off('getUser');
+            }
+        };
+    }, [socket, user]);
 
     useEffect(() => {
         const fetchAllUsersAndConversations = async () => {
@@ -71,6 +110,13 @@ function UserDashBoard() {
 
     const sendMessage = async () => {
         try {
+            socket?.emit('sendMessage', {
+                senderId: user?.id,
+                reciverId: message?.reciver?.receiverId,
+                conversationId: message?.conversationId,
+                message: newMessage,
+            })
+            setNewMessage("");
             const res = await fetch('http://localhost:8000/api/message', {
                 method: 'POST',
                 headers: {
@@ -81,10 +127,11 @@ function UserDashBoard() {
                     senderId: user?.id,
                     message: newMessage,
                     receiverId: message?.reciver?.receiverId,
+                    
                 }),
+                
             });
-            console.log("Message Clearing .. process");
-            setNewMessage("");
+
         } catch (error) {
             console.error('Error sending message:', error);
         }
