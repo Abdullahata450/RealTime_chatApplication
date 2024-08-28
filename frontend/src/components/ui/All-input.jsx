@@ -39,6 +39,7 @@ export function Inputchat({ value = "", onChange = () => {} }) {
         onChange={onChange} 
         value={value} 
         required
+        className="chat-input"
       />
     </div>
   );

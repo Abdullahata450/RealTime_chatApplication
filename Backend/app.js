@@ -39,34 +39,51 @@ const io = new Server(server, {
 let users=[];
 io.on('connection', (socket) => {
     console.log('User Connected', socket.id);
-    socket.on('addUser',userId =>{
-        const existingUser= users.find(user=>user.userId===userId)
-        if(!existingUser){
-            const user={userId ,socketId:socket.id};
-            users.push(user)
-            io.emit('getUser',users)
+    
+    socket.on('addUser', userId => {
+        const existingUser = users.find(user => user.userId === userId);
+        if (!existingUser) {
+            const user = { userId, socketId: socket.id };
+            users.push(user);
+            io.emit('getUser', users);
         }
-    })
+    });
 
-    socket.on('sendMessage',async({senderId,reciverId,message,conversationId})=>{
-      const recevier= users.find(user=> user.userId===reciverId);
-      const sender = users.find(user=> user.userId===senderId);
-      const user= await User.findById(senderId);
-      if(recevier){
-        io.to(recevier.socketId).to(sender.socketId).emit('getMessage',{
-            senderId,
-            message,
-            conversationId,
-            reciverId,
-            user:{id:user._id,fullname:user.fullname,email:user.email},
-        })
-      }
+    socket.on('sendMessage', async ({ senderId, reciverId, message, conversationId }) => {
+        const receiver = users.find(user => user.userId === reciverId);
+        const sender = users.find(user => user.userId === senderId);
+        const user = await User.findById(senderId);
+
+        // Always store the message in the database or other persistence method before emitting
+        // Example: Save the message to the database here
+
+        if (receiver) {
+            // Receiver is active
+            io.to(receiver.socketId).to(sender.socketId).emit('getMessage', {
+                senderId,
+                message,
+                conversationId,
+                reciverId,
+                user: { id: user._id, fullname: user.fullname, email: user.email },
+            });
+        } else {
+            // Receiver is not active, send only to the sender
+            io.to(sender.socketId).emit('getMessage', {
+                senderId,
+                message,
+                conversationId,
+                reciverId,
+                user: { id: user._id, fullname: user.fullname, email: user.email },
+            });
+
+            // Store the message as unread
+        }
     });
 
     socket.on('disconnect', () => {
-        users=users.filter(user=>user.socketId!==socket.id);
-        io.emit('getUser',users)
-    })
+        users = users.filter(user => user.socketId !== socket.id);
+        io.emit('getUser', users);
+    });
 });
 
 
@@ -228,6 +245,7 @@ app.post('/api/message', async (req, res) => {
         return res.status(500).json(new ApiResponse(500, null, 'Error while sending message'));
     }
 });
+
 app.get('/api/message/:conversationId', async (req, res) => {
     try {
         // Function to fetch messages and user data

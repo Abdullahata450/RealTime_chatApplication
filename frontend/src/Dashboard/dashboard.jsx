@@ -13,9 +13,16 @@ function UserDashBoard() {
     const [users, setUsers] = useState([]);
     const [filteredUsers, setFilteredUsers] = useState([]);
     const [socket,setSocket] = useState(null);  
-    const inputRef = useRef(null);
+    const messageRef = useRef(null);
       
     console.log(message,"message");
+
+    useEffect(() => {
+      if (messageRef.current) {
+        messageRef.current.scrollIntoView({ behavior: "smooth", block: "end", inline: "nearest" });
+      }
+    }, [message.message]); 
+
 
     useEffect(() => {
         const socketInstance = io('http://localhost:8081');
@@ -38,7 +45,7 @@ function UserDashBoard() {
                 console.log("message Data",data);
                 setMessage(prev=>({
                     ...prev,
-                    message:[...prev.message,{user:data.user,message:data.message}],
+                    message:[...(prev.message || []),{user:data.user,message:data.message}],
                 }))
 
             })
@@ -131,6 +138,20 @@ function UserDashBoard() {
                 }),
                 
             });
+            
+        const resData = await res.json();
+
+        if (resData.success) {
+            // Clear the message input field
+            setNewMessage("");
+
+            // Option 1: Reload the entire page (not recommended unless necessary)
+            window.location.reload();
+
+            // Option 2: Fetch the updated conversations and messages to reflect the new conversation
+            fetchAllUsersAndConversations();
+            fetchMessages(message?.conversationId, message?.reciver);
+        }
 
         } catch (error) {
             console.error('Error sending message:', error);
@@ -202,9 +223,11 @@ function UserDashBoard() {
                         {
                             message?.message?.length > 0 ?
                                 message.message.map(({ message, user: { id } = {} }, index) => (
-                                    <div key={index} className={id === user?.id ? 'chat-message-sent' : 'chat-message-received'}>
+                                    <>
+                                    <div ref={messageRef} key={index} className={id === user?.id ? 'chat-message-sent' : 'chat-message-received'}>
                                         {message}
                                     </div>
+                                    </>
                                 )) : <p className='text-center text-lg font-bold italic mt-14'>{`No messages Or Conversation with  ${message.reciver.fullname}`}</p>
                         }
                     </div>
