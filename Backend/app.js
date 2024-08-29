@@ -38,50 +38,58 @@ const io = new Server(server, {
 
 let users=[];
 io.on('connection', (socket) => {
-    console.log('User Connected', socket.id);
-    
-    socket.on('addUser', userId => {
-        const existingUser = users.find(user => user.userId === userId);
-        if (!existingUser) {
-            const user = { userId, socketId: socket.id };
-            users.push(user);
-            io.emit('getUser', users);
-        }
+    console.log('A user connected');
+
+    // Add a user to the list when they connect
+    socket.on('addUser', (userId) => {
+        // Remove the user if they are already in the list (to avoid duplicates)
+        users = users.filter(user => user.userId !== userId);
+        // Add or update the user's socket ID
+        users.push({ userId, socketId: socket.id });
+        // Notify all clients about the updated user list
+        io.emit('getUser', users);
     });
 
+    // Handle sending a message
     socket.on('sendMessage', async ({ senderId, reciverId, message, conversationId }) => {
-        const receiver = users.find(user => user.userId === reciverId);
-        const sender = users.find(user => user.userId === senderId);
-        const user = await User.findById(senderId);
+        try {
+            // Find the receiver and sender in the users list
+            const receiver = users.find(user => user.userId === reciverId);
+            const sender = users.find(user => user.userId === senderId);
+            const senderUser = await User.findById(senderId);
 
-        // Always store the message in the database or other persistence method before emitting
-        // Example: Save the message to the database here
+            // Save the message to the database or other persistence method
+            // Example: Save the message to the database here
 
-        if (receiver) {
-            // Receiver is active
-            io.to(receiver.socketId).to(sender.socketId).emit('getMessage', {
+            const messageData = {
                 senderId,
                 message,
                 conversationId,
                 reciverId,
-                user: { id: user._id, fullname: user.fullname, email: user.email },
-            });
-        } else {
-            // Receiver is not active, send only to the sender
-            io.to(sender.socketId).emit('getMessage', {
-                senderId,
-                message,
-                conversationId,
-                reciverId,
-                user: { id: user._id, fullname: user.fullname, email: user.email },
-            });
+                user: { id: senderUser._id, fullname: senderUser.fullname, email: senderUser.email },
+            };
 
-            // Store the message as unread
+            if (receiver) {
+                // Receiver is active, send the message to the receiver
+                io.to(receiver.socketId).emit('getMessage', messageData);
+            }
+            // Always send the message to the sender for local echo
+            if (sender) {
+                io.to(sender.socketId).emit('getMessage', messageData);
+            }
+
+            // If the receiver is not active, you may choose to handle offline message storage here
+        } catch (error) {
+            console.error('Error sending message:', error);
         }
     });
 
+    // Handle user disconnection
     socket.on('disconnect', () => {
+        console.log('A user disconnected');
+        // Remove the user from the list on disconnect
         users = users.filter(user => user.socketId !== socket.id);
+        // Notify all clients about the updated user list
         io.emit('getUser', users);
     });
 });
